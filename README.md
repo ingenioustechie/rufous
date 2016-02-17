@@ -27,7 +27,7 @@ A messaging Queue requires a a deamon to watch Queue and execute it as soon as i
 You can run the this simple deamon in background with nohup as 
 
 ```
-nohup python deamon.py
+nohup python deamon.py &
 ```
 
 NOTE: If you are adding any new task import the same in deamon and restart the deamon. 
