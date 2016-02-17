@@ -1,6 +1,8 @@
 import sys
 from pickle import loads, dumps
 from rufous import Broker
+from example import add
+
 
 db = Broker()
 

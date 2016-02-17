@@ -14,7 +14,7 @@ if sys.argv[-1] == 'publish':
     os.system('python setup.py bdist_wheel upload --universal')
     sys.exit()
 
-requires = ['redis','docopt']
+requires = ['redis']
 version = '0.0.1'
 
 def read(f):
