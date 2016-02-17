@@ -1,34 +1,29 @@
+import logging
 import redis
-from docopt import docopt
 from pickle import loads, dumps
 from uuid import uuid4
+
+logging.basicConfig(
+        filename="rufous.log",
+        filemode='a',
+        format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+        datefmt='%H:%M:%S',
+        level=logging.DEBUG)
+
+log = logging.getLogger("rufous")
 
 
 def rufous(func):
     broker = Broker()
+
     def delay(*args, **kwargs):
         key = str(uuid4())
         task = dumps((func, key, args, kwargs))
         broker.push(task)
-        return Worker(key)
+        log.debug("pushed task id {0}".format(key))
+        return key
     func.delay = delay
     return func
-
-
-class Worker(object):
-    def __init__(self, key):
-        self.key = key
-        self._result = None
-
-    @property
-    def result(self):
-        print("Result got called")
-        print self.key
-        if self._r is None:
-            r = redis.get(self.key)
-            if r is not None:
-                self._result = loads(r)
-        return self._result
 
 
 class Broker(object):
@@ -44,10 +39,10 @@ class Broker(object):
         # redis://127.0.0.1:6379/1
         POOL = redis.ConnectionPool(host=host, port=port, db=db)
         self.db = redis.Redis(connection_pool=POOL)
-        self.__key = '%s' %(namespace)
-        self.__done_key = '%s:done' %(namespace)
-        self.__waiting_key = '%s:wait' %(namespace)
-        self.__failed_key = '%s:failed' %(namespace)
+        self.__key = '%s' % (namespace)
+        self.__done_key = '%s:done' % (namespace)
+        self.__waiting_key = '%s:wait' % (namespace)
+        self.__failed_key = '%s:failed' % (namespace)
 
     def __keys(self, connection_url):
 
@@ -71,15 +66,32 @@ class Broker(object):
     def done(self, key, result):
         """ Push item into the Done/Fail """
         self.db.hset(self.__done_key, key, result)
+        # clear wait Queue
+        self.__clearWaiting()
+        log.debug("Done task id {0}".format(key))
 
     def failed(self, key, result):
         """ Push item into the Done/Fail """
         self.db.hset(self.__failed_key, key, result)
+        # clear wait Queue
+        self.__clearWaiting()
+
+    def getResult(self, key):
+        """ Get result by from Done/Fail """
+        result = self.db.hget(self.__done_key, key)
+        if result:
+            return True, loads(result)
+
+        result = self.db.hget(self.__waiting_key, key)
+        if result:
+            return False, loads(result)
+
+        return None, None
 
     def __clearWaiting(self):
         """ Clears waiting tasks """
-        task = self.db.lpull(self.__waiting_key)
-        func, key, args, kwargs = loads(task[1])
+        task = self.db.lpop(self.__waiting_key)
+        func, key, args, kwargs = loads(task)
 
         # check in done task
         item = self.db.hget(self.__done_key, key)
@@ -90,7 +102,7 @@ class Broker(object):
                 # If task is not in done/failed store it again
                 self.db.rpush(self.__waiting_key, task)
 
-    def size(self):
+    def queueSize(self):
         """Return the size of the queue."""
         return self.db.llen(self.key)
 
