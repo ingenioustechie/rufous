@@ -34,4 +34,7 @@ NOTE: If you are adding any new task import the same in deamon and restart the d
 
 
 
-TODO : Complete test case for all functionality  
+TODO : 
+1. Complete test case for all functionality
+2. Test setup.py for installation
+3. Since I developed it on 2.7.6 need to test on diffrent python versions from 2.7.X to 3.5 
